@@ -31,7 +31,7 @@
 
 /* definitions */
 
-#define DESTZONE "TZ=Europe/Berlin"
+#define DESTZONE "TZ=Europe/London"
 #define temp_offset (0.0f)
 #define sample_rate_mode (BSEC_SAMPLE_RATE_LP)
 
