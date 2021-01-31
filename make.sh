@@ -42,6 +42,7 @@ cc -Wall -Wno-unused-but-set-variable -Wno-unused-variable -static \
   ./bsec_bme680.c \
   -L"${BSEC_DIR}"/algo/"${ARCH}" -lalgobsec \
   -lm -lrt \
+  -L. -lsqlite3 -lpthread -ldl \
   -o bsec_bme680
 echo 'Compiled.'
 

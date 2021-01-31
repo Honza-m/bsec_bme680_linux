@@ -10,6 +10,9 @@
 /*#define _POSIX_C_SOURCE 200809L*/
 #define _XOPEN_SOURCE 700
 
+// Define linux
+#define _GNU_SOURCE
+
 /* header files */
 
 #include <stdio.h>
@@ -24,7 +27,7 @@
 #include <sys/stat.h>
 #include <linux/i2c-dev.h>
 #include "bsec_integration.h"
-#include <sqlite3.h>
+#include "sqlite3.h"
 
 /* definitions */
 
@@ -215,14 +218,14 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
   
   // Prepare SQL statement
   char *sql;
-  char statement = "INSERT INTO sensor VALUES"
+  char statement[200] = "INSERT INTO sensor VALUES"
                    "("
-                   "%d-%02d-%02d %02d:%02d:%02d,"  // Time
-                   "%.2f,%.2f,%.2f"  // Temp, pressure, humidity
-                   "%d"  // Air accuracy
-                   "%.2f"  // Air
-                   "%.0f"  // Air Ohms
-                   "%.15f"  // eCO2
+                   "'%d-%02d-%02d %02d:%02d:%02d',"  // Time
+                   "%.2f,%.2f,%.2f,"  // Temp, pressure, humidity
+                   "%d,"  // Air accuracy
+                   "%.2f,"  // Air
+                   "%.0f,"  // Air Ohms
+                   "%.15f,"  // eCO2
                    "%.25f"  // BVOCe
                    ");";
 
@@ -238,6 +241,7 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
     co2_equivalent,
     breath_voc_equivalent
   );
+
   if (sql == NULL) {
     fprintf(stderr, "Error in asprintf\n");
     sqlite3_close(db);
@@ -259,7 +263,6 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
   
   sqlite3_close(db);
   free(sql);
-  free(statement);
   
 
   // printf("%d-%02d-%02d %02d:%02d:%02d,", tm.tm_year + 1900,tm.tm_mon + 1,
@@ -409,6 +412,8 @@ int main()
    * = 500 minutes (depending on the config).
    *
    */
+  printf("Collecting data.. (ctrl+c to exit)\r\n");
+  fflush(stdout);
   bsec_iot_loop(_sleep, get_timestamp_us, output_ready, state_save, 10000);
 
   i2cClose();
