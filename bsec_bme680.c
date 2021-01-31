@@ -24,11 +24,12 @@
 #include <sys/stat.h>
 #include <linux/i2c-dev.h>
 #include "bsec_integration.h"
+#include <sqlite3.h>
 
 /* definitions */
 
 #define DESTZONE "TZ=Europe/Berlin"
-#define temp_offset (5.0f)
+#define temp_offset (0.0f)
 #define sample_rate_mode (BSEC_SAMPLE_RATE_LP)
 
 int g_i2cFid; // I2C Linux device handle
@@ -198,20 +199,84 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
   time_t t = time(NULL);
   struct tm tm = *localtime(&t);
 
-  printf("%d-%02d-%02d %02d:%02d:%02d,", tm.tm_year + 1900,tm.tm_mon + 1,
-         tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec); /* localtime */
-  printf("[IAQ (%d)]: %.2f", iaq_accuracy, iaq);
-  printf(",[T degC]: %.2f,[H %%rH]: %.2f,[P hPa]: %.2f", temperature,
-         humidity,pressure / 100);
-  printf(",[G Ohms]: %.0f", gas);
-  printf(",[S]: %d", bsec_status);
-  //printf(",[static IAQ]: %.2f", static_iaq);
-  printf(",[eCO2 ppm]: %.15f", co2_equivalent);
-  printf(",[bVOCe ppm]: %.25f", breath_voc_equivalent);
+  // Save to sqlite instead of printing
+  sqlite3 *db;
+  char *err_msg = 0;
+  
+  int rc = sqlite3_open("../main.db", &db);
+  
+  if (rc != SQLITE_OK) {
+      
+      fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+      sqlite3_close(db);
+      
+      return 1;
+  }
+  
+  // Prepare SQL statement
+  char* sql;
+  char statement = "INSERT INTO sensor VALUES"
+                   "("
+                   "%d-%02d-%02d %02d:%02d:%02d,"  // Time
+                   "%.2f,%.2f,%.2f"  // Temp, pressure, humidity
+                   "%d"  // Air accuracy
+                   "%.2f"  // Air
+                   "%.0f"  // Air Ohms
+                   "%.15f"  // eCO2
+                   "%.25f"  // BVOCe
+                   ");";
+
+  // Count the size of the result
+  sql = asprintf(
+    statement,
+    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
+    temperature, pressure / 100, humidity,
+    iaq_accuracy,
+    iaq,
+    gas,
+    co2_equivalent,
+    breath_voc_equivalent
+  );
+  if (sql == NULL) {
+    fprintf(stderr, "Error in asprintf\n");
+    sqlite3_close(db);
+      
+    return 1;
+  }
+
+  rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
+  
+  if (rc != SQLITE_OK ) {
+      
+      fprintf(stderr, "SQL error: %s\n", err_msg);
+      
+      sqlite3_free(err_msg);        
+      sqlite3_close(db);
+      
+      return 1;
+  } 
+  
+  sqlite3_close(db);
+  free(sql);
+  free(statement);
+  
+  return 0;
+  
+
+  // printf("%d-%02d-%02d %02d:%02d:%02d,", tm.tm_year + 1900,tm.tm_mon + 1,
+  //        tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec); /* localtime */
+  // printf("[IAQ (%d)]: %.2f", iaq_accuracy, iaq);
+  // printf(",[T degC]: %.2f,[H %%rH]: %.2f,[P hPa]: %.2f", temperature,
+  //        humidity,pressure / 100);
+  // printf(",[G Ohms]: %.0f", gas);
+  // printf(",[S]: %d", bsec_status);
+  // //printf(",[static IAQ]: %.2f", static_iaq);
+  // printf(",[eCO2 ppm]: %.15f", co2_equivalent);
+  // printf(",[bVOCe ppm]: %.25f", breath_voc_equivalent);
   //printf(",%" PRId64, timestamp);
   //printf(",%" PRId64, timestamp_ms);
-  printf("\r\n");
-  fflush(stdout);
+  // printf("\r\n");
+  // fflush(stdout);
 }
 
 /*
