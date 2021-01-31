@@ -210,11 +210,11 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
       fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
       sqlite3_close(db);
       
-      return 1;
+      return;
   }
   
   // Prepare SQL statement
-  char* sql;
+  char *sql;
   char statement = "INSERT INTO sensor VALUES"
                    "("
                    "%d-%02d-%02d %02d:%02d:%02d,"  // Time
@@ -227,7 +227,8 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
                    ");";
 
   // Count the size of the result
-  sql = asprintf(
+  asprintf(
+    &sql,
     statement,
     tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec,
     temperature, pressure / 100, humidity,
@@ -241,7 +242,7 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
     fprintf(stderr, "Error in asprintf\n");
     sqlite3_close(db);
       
-    return 1;
+    return;
   }
 
   rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
@@ -253,14 +254,12 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
       sqlite3_free(err_msg);        
       sqlite3_close(db);
       
-      return 1;
+      return;
   } 
   
   sqlite3_close(db);
   free(sql);
   free(statement);
-  
-  return 0;
   
 
   // printf("%d-%02d-%02d %02d:%02d:%02d,", tm.tm_year + 1900,tm.tm_mon + 1,
