@@ -13,6 +13,12 @@
 // Define linux
 #define _GNU_SOURCE
 
+/* We only want to save data every two minutes, not three seconds,
+ * so this will keep track of how many loops we've done. Config can't
+ * be changed from 3s for temperatures to remain constant.
+ */
+int loopCount = 0;
+
 /* header files */
 
 #include <stdio.h>
@@ -191,10 +197,16 @@ void output_ready(int64_t timestamp, float iaq, uint8_t iaq_accuracy,
                   float static_iaq, float co2_equivalent,
                   float breath_voc_equivalent)
 {
-  //int64_t timestamp_s = timestamp / 1000000000;
-  ////int64_t timestamp_ms = timestamp / 1000;
+  // Only save output every minute
+  loopCount = loopCount + 1;
+  if (loopCount < 21) {
+    // Return if too recent
+    return;
+  } else {
+    // Reset count if saving this time
+    loopCount = 0;
+  }
 
-  //time_t t = timestamp_s;
   /*
    * timestamp for localtime only makes sense if get_timestamp_us() uses
    * CLOCK_REALTIME
